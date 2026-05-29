@@ -5,7 +5,7 @@ from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
 
 
-MODEL_PATH = "pose_landmarker_lite.task"
+MODEL_PATH = "pose_landmarker_full.task"
 
 
 def draw_point(frame, landmark, radius=8):
