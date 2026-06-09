@@ -4,7 +4,7 @@ import pose
 
 
 def main():
-    print("One or Two Cameras?")
+    print("1 or 2 Cameras?")
     num_of_camera = input()
 
     detector = pose.create_detector()
