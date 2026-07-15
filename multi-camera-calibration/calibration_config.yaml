@@ -1,0 +1,47 @@
+# ChArUcoボードキャリブレーション設定ファイル
+
+# グローバル設定
+display_scale: 0.5                   # 表示スケール（ライブビュー用）
+config_path: config/multi_camera_config.yaml  # マルチカメラ設定ファイルのパス（自動生成）
+
+# ボード設定
+board:
+  squares_x: 10                      # 横方向の升数
+  squares_y: 7                       # 縦方向の升数
+  square_length: 29.0                # 升のサイズ [mm]
+  marker_length: 21.75               # マーカーのサイズ [mm] (通常は square_length * 0.75)
+  dictionary: "DICT_4X4_50"          # ArUco辞書の種類
+                                     # 選択肢: DICT_4X4_50, DICT_4X4_100, DICT_5X5_100,
+                                     #        DICT_6X6_250, DICT_7X7_1000 など
+
+# 検出パラメータ
+detection:
+  min_markers: 10                    # ChArUco補間に必要な最小マーカー数
+  corner_refinement_winsize: 3       # cornerSubPixのウィンドウサイズ
+  corner_refinement_max_iter: 30     # cornerSubPixの最大反復回数
+  corner_refinement_epsilon: 0.01    # cornerSubPixの収束閾値
+
+# キャリブレーションパラメータ
+calibration:
+  target_rms: 0.5                    # 目標RMS再投影誤差 [px]
+  stereo_max_iter: 100               # ステレオキャリブレーションの最大反復回数
+  stereo_epsilon: 1e-6               # ステレオキャリブレーションの収束閾値
+
+# データパス
+paths:
+  captured_images: "captured_images" # キャプチャ画像のベースディレクトリ
+  output_dir: "calibration_results"  # キャリブレーション結果の出力先
+  detection_cache: "detection_cache" # 検出結果のキャッシュディレクトリ
+
+# ワールド座標系設定
+world_coordinate:
+  reference_type: "first_board"  # ワールド座標系の基準
+                                 # 選択肢: 
+                                 #   - "camera0", "camera1", ... : 指定カメラを原点とする
+                                 #   - "board0", "board1", ...   : 指定フレームのボードを原点とする
+                                 #   - "first_board"             : 最初のフレームのボードを原点とする
+                                 #   - "last_board"              : 最後のフレームのボードを原点とする
+  frame_id: 0                    # reference_type が "board{N}" の場合に使用するフレームID
+  board_z_axis_up: true          # ボード基準の場合、Z軸を上向きに調整するか
+                                 # true: X-Y軸入れ替え、Z軸反転を適用（デフォルト）
+                                 # false: ボード座標系をそのまま使用

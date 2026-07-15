@@ -1,0 +1,71 @@
+# Hand 3D Reconstruction Configuration
+# This file contains all tunable parameters for the multi-camera hand 3D reconstruction system
+
+# Hand Detection Parameters (MediaPipe)
+hand_detection:
+  max_num_hands: 2                    # Maximum number of hands to detect per camera
+  min_detection_confidence: 0.3       # Minimum confidence for hand detection (0.0-1.0)
+  min_tracking_confidence: 0.3        # Minimum confidence for hand tracking (0.0-1.0)
+
+# Epipolar Matching Parameters
+epipolar_matcher:
+  alpha: 1.0                          # Weight for Sampson distance in cost function
+  gamma: 0.1                          # Weight for confidence penalty in cost function
+  epsilon: 1.0e-6                     # Small constant for numerical stability in log
+  epipolar_threshold: 100.0           # Maximum epipolar distance in pixels
+
+# Ray Triangulation Parameters
+ray_triangulator:
+  ray_distance_threshold: 50.0        # Maximum distance between rays in millimeters
+  reprojection_threshold: 100.0       # Maximum reprojection error in pixels
+
+# Pairwise Hypothesis Generation Parameters
+pair_hypothesis:
+  reproj_threshold: 100.0             # Reprojection error threshold in pixels
+  cross_dist_threshold: 50.0          # Ray crossing distance threshold in millimeters
+  min_parallax_deg: 0.1               # Minimum parallax angle in degrees
+
+# Epipolar Algorithm Parameters
+epipolar:
+  tau_epi: 15.0                       # Epipolar distance threshold in pixels
+  w1: 1.0                             # Weight for epipolar constraint
+  w2: 0.1                             # Weight for scale penalty
+  w3: 0.1                             # Weight for shape penalty
+  w_parallax: 0.1                     # Weight for parallax penalty
+  tau_scale: 1.0                      # Scale difference tolerance
+  theta_pair: 0.01                     # Threshold for hand pairing
+  theta_consensus: 1.0               # Threshold for consensus in clustering
+
+# Robust Estimation Parameters
+robust:
+  method: 'huber'                     # Robust estimation method: 'huber' or 'tukey'
+  delta: 20.0                         # Huber/Tukey delta parameter in millimeters
+  max_iters: 5                        # Maximum iterations for IRLS
+  residual_outlier: 50.0              # Outlier threshold for residuals in millimeters
+
+# Observation Weight Parameters
+weights:
+  alpha_score: 1.0                    # Weight for detection score
+  beta_baseline: 0.1                  # Weight for baseline/parallax
+
+# Hand Tracking Parameters
+hand_tracking:
+  max_centroid_distance: 0.5          # Maximum centroid distance for matching in meters
+  max_lost_frames: 0 #30                 # Maximum frames to keep tracking lost hands (ghost tracking)
+  reappear_distance_multiplier: 1.5   # Distance multiplier for re-matching lost hands
+
+# 3D Visualization Parameters
+visualization_3d:
+  camera_rotation_speed: 2.0          # Camera rotation speed in degrees per frame
+  camera_distance: 3.0                # Camera orbit radius in meters
+  camera_height_offset: 2.0           # Camera height offset in meters
+  show_ghost_hands: true              # Show lost/ghost hands in visualization
+  ghost_opacity: 0.3                  # Opacity for ghost hands (0.0-1.0, lower = more transparent)
+
+# Reconstruction Quality Thresholds
+reconstruction:
+  min_landmarks_partial: 3            # Minimum landmarks to accept partial reconstruction
+  min_landmarks_complete: 5           # Minimum landmarks to consider reconstruction complete
+  min_landmarks_display: 15           # Minimum landmarks for high-quality display
+  num_workers: 4
+  executor_workers: 6

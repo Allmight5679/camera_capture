@@ -1,0 +1,17 @@
+# マルチカメラ校正システム　必要パッケージ
+
+# Core dependencies
+numpy>=1.21.0
+opencv-contrib-python>=4.5.0
+scipy>=1.7.0
+PyYAML>=5.4.0
+
+# Visualization
+matplotlib>=3.4.0
+
+# Hand detection
+mediapipe>=0.10.0
+
+# Optional: For advanced optimization (if using Ceres/g2o in future)
+# ceres-python
+# g2o-python
