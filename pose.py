@@ -4,7 +4,6 @@ import mediapipe as mp
 from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
 
-
 MODEL_PATH = "pose_landmarker_full.task"
 
 BODY_COLOR = (255, 0, 0)
@@ -50,7 +49,7 @@ def draw_head_shape(frame, landmarks):
             0,
             360,
             BODY_COLOR,
-            LINE_THICKNESS
+            LINE_THICKNESS,
         )
 
         return (center_x, center_y + head_height // 2)
@@ -83,13 +82,11 @@ def process_frame(detector, frame):
         (4, 5),
         (5, 6),
         (9, 10),
-
         # arms
         (11, 13),
         (13, 15),
         (12, 14),
         (14, 16),
-
         # hands
         (15, 17),
         (15, 19),
@@ -97,19 +94,16 @@ def process_frame(detector, frame):
         (16, 18),
         (16, 20),
         (16, 22),
-
         # torso
         (11, 12),
         (11, 23),
         (12, 24),
         (23, 24),
-
         # legs
         (23, 25),
         (25, 27),
         (24, 26),
         (26, 28),
-
         # feet
         (27, 29),
         (29, 31),
@@ -121,10 +115,7 @@ def process_frame(detector, frame):
 
     rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
-    mp_image = mp.Image(
-        image_format=mp.ImageFormat.SRGB,
-        data=rgb_frame
-    )
+    mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb_frame)
 
     result = detector.detect(mp_image)
 
@@ -138,17 +129,11 @@ def process_frame(detector, frame):
 
         shoulder_midpoint = (
             (left_shoulder[0] + right_shoulder[0]) // 2,
-            (left_shoulder[1] + right_shoulder[1]) // 2
+            (left_shoulder[1] + right_shoulder[1]) // 2,
         )
 
         if bottom_head is not None:
-            cv2.line(
-                frame,
-                bottom_head,
-                shoulder_midpoint,
-                BODY_COLOR,
-                LINE_THICKNESS
-            )
+            cv2.line(frame, bottom_head, shoulder_midpoint, BODY_COLOR, LINE_THICKNESS)
 
         for point in selected_points:
             draw_point(frame, landmarks[point])
@@ -157,13 +142,7 @@ def process_frame(detector, frame):
             x1, y1 = get_point(frame, landmarks, start)
             x2, y2 = get_point(frame, landmarks, end)
 
-            cv2.line(
-                frame,
-                (x1, y1),
-                (x2, y2),
-                BODY_COLOR,
-                LINE_THICKNESS
-            )
+            cv2.line(frame, (x1, y1), (x2, y2), BODY_COLOR, LINE_THICKNESS)
 
     return frame
 
