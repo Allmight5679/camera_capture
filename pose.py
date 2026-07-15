@@ -5,6 +5,7 @@ import numpy as np
 from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
 
+
 MODEL_PATH = "pose_landmarker_full.task"
 
 BODY_COLOR = (255, 0, 0)
@@ -19,11 +20,13 @@ CONNECTIONS = [
     (4, 5),
     (5, 6),
     (9, 10),
+
     # arms
     (11, 13),
     (13, 15),
     (12, 14),
     (14, 16),
+
     # hands
     (15, 17),
     (15, 19),
@@ -31,16 +34,19 @@ CONNECTIONS = [
     (16, 18),
     (16, 20),
     (16, 22),
+
     # torso
     (11, 12),
     (11, 23),
     (12, 24),
     (23, 24),
+
     # legs
     (23, 25),
     (25, 27),
     (24, 26),
     (26, 28),
+
     # feet
     (27, 29),
     (29, 31),
@@ -51,6 +57,7 @@ CONNECTIONS = [
 
 def draw_point(frame, point, radius=8):
     x, y = point
+
     cv2.circle(
         frame,
         (int(x), int(y)),
@@ -60,17 +67,6 @@ def draw_point(frame, point, radius=8):
     )
 
 
-def get_point(frame, landmarks, index):
-    h, w = frame.shape[:2]
-
-    landmark = landmarks[index]
-
-    x = int(landmark.x * w)
-    y = int(landmark.y * h)
-
-    return x, y
-
-
 def draw_head_shape(frame, points):
     nose = points[0]
     left_eye = points[2]
@@ -78,14 +74,34 @@ def draw_head_shape(frame, points):
     left_ear = points[7]
     right_ear = points[8]
 
-    center_x = (left_ear[0] + right_ear[0]) // 2
+    center_x = int(
+        (
+            left_ear[0]
+            + right_ear[0]
+        )
+        / 2
+    )
 
-    center_y = (left_eye[1] + right_eye[1] + nose[1]) // 3
+    center_y = int(
+        (
+            left_eye[1]
+            + right_eye[1]
+            + nose[1]
+        )
+        / 3
+    )
 
-    head_width = abs(right_ear[0] - left_ear[0])
+    head_width = int(
+        abs(
+            right_ear[0]
+            - left_ear[0]
+        )
+    )
 
     if head_width > 0:
-        head_height = int(head_width * 1.25)
+        head_height = int(
+            head_width * 1.25
+        )
 
         cv2.ellipse(
             frame,
@@ -106,14 +122,17 @@ def draw_head_shape(frame, points):
 
         return (
             center_x,
-            center_y + head_height // 2,
+            center_y
+            + head_height // 2,
         )
 
     return None
 
 
 def create_detector():
-    base_options = python.BaseOptions(model_asset_path=MODEL_PATH)
+    base_options = python.BaseOptions(
+        model_asset_path=MODEL_PATH
+    )
 
     options = vision.PoseLandmarkerOptions(
         base_options=base_options,
@@ -124,12 +143,14 @@ def create_detector():
         min_tracking_confidence=0.5,
     )
 
-    return vision.PoseLandmarker.create_from_options(options)
+    return vision.PoseLandmarker.create_from_options(
+        options
+    )
 
 
 def detect_pose(detector, frame):
     """
-    Detect pose landmarks in the ORIGINAL, unflipped frame.
+    Detect pose landmarks in the original, unflipped frame.
 
     Returns:
         List of 33 (x, y) pixel coordinates,
@@ -146,23 +167,31 @@ def detect_pose(detector, frame):
         data=rgb_frame,
     )
 
-    result = detector.detect(mp_image)
+    result = detector.detect(
+        mp_image
+    )
 
     if not result.pose_landmarks:
         return None
 
     landmarks = result.pose_landmarks[0]
 
+    h, w = frame.shape[:2]
+
     points = []
 
     for landmark in landmarks:
-        h, w = frame.shape[:2]
+        x = float(
+            landmark.x * w
+        )
 
-        x = float(landmark.x * w)
+        y = float(
+            landmark.y * h
+        )
 
-        y = float(landmark.y * h)
-
-        points.append((x, y))
+        points.append(
+            (x, y)
+        )
 
     return points
 
@@ -186,8 +215,20 @@ def draw_pose(frame, points):
     right_shoulder = points[12]
 
     shoulder_midpoint = (
-        int((left_shoulder[0] + right_shoulder[0]) / 2),
-        int((left_shoulder[1] + right_shoulder[1]) / 2),
+        int(
+            (
+                left_shoulder[0]
+                + right_shoulder[0]
+            )
+            / 2
+        ),
+        int(
+            (
+                left_shoulder[1]
+                + right_shoulder[1]
+            )
+            / 2
+        ),
     )
 
     if bottom_head is not None:
@@ -228,7 +269,7 @@ def draw_pose(frame, points):
 
 def process_frame(detector, frame):
     """
-    Detect landmarks and return both:
+    Detect landmarks and return:
         annotated frame
         raw 2D landmark coordinates
     """
@@ -263,11 +304,14 @@ def triangulate_points(
     Camera 0's coordinate system.
 
     Returns:
-        numpy array with shape (33, 3)
+        NumPy array with shape (33, 3),
         or None if landmarks are missing.
     """
 
-    if points1 is None or points2 is None:
+    if (
+        points1 is None
+        or points2 is None
+    ):
         return None
 
     if len(points1) != len(points2):
@@ -276,15 +320,23 @@ def triangulate_points(
     points1 = np.array(
         points1,
         dtype=np.float64,
-    ).reshape(-1, 1, 2)
+    ).reshape(
+        -1,
+        1,
+        2,
+    )
 
     points2 = np.array(
         points2,
         dtype=np.float64,
-    ).reshape(-1, 1, 2)
+    ).reshape(
+        -1,
+        1,
+        2,
+    )
 
-    # Remove lens distortion and convert
-    # pixel coordinates to normalized camera coordinates.
+    # Remove lens distortion and convert pixel coordinates
+    # to normalized camera coordinates.
     points1_undistorted = cv2.undistortPoints(
         points1,
         K1,
@@ -316,12 +368,21 @@ def triangulate_points(
     points_4d = cv2.triangulatePoints(
         P1,
         P2,
-        points1_undistorted.reshape(-1, 2).T,
-        points2_undistorted.reshape(-1, 2).T,
+        points1_undistorted.reshape(
+            -1,
+            2,
+        ).T,
+        points2_undistorted.reshape(
+            -1,
+            2,
+        ).T,
     )
 
     # Convert homogeneous coordinates:
     # (X, Y, Z, W) -> (X/W, Y/W, Z/W)
-    points_3d = (points_4d[:3] / points_4d[3]).T
+    points_3d = (
+        points_4d[:3]
+        / points_4d[3]
+    ).T
 
     return points_3d
