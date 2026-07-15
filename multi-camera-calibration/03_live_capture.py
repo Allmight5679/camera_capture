@@ -138,8 +138,7 @@ def main() -> int:
     parser.add_argument(
         "--output",
         default="captured_images",
-        help="Output directory for captured images "
-             "(default: captured_images)",
+        help="Output directory for captured images " "(default: captured_images)",
     )
 
     args = parser.parse_args()
@@ -194,8 +193,7 @@ def main() -> int:
 
                 if not success or frame is None:
                     print(
-                        f"Warning: Could not read frame "
-                        f"from Camera {camera_index}"
+                        f"Warning: Could not read frame " f"from Camera {camera_index}"
                     )
                     current_images.append(None)
                     continue

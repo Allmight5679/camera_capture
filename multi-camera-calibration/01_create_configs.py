@@ -7,6 +7,7 @@ Usage (Windows cmd):
   python 01_create-configs.py --num 2
   python 01_create-configs.py --num 3 --pattern config/cam{}.xml
 """
+
 from __future__ import annotations
 import argparse
 from pathlib import Path
@@ -22,18 +23,20 @@ def prompt_and_save(label: str, out_path: Path) -> bool:
 
     print(f"=== Select {label} camera ===")
     grabber = TISGrabberWrapper()
-    
+
     # 既存の設定ファイルがあれば読み込む
     if out_path.exists():
         print(f"Loading existing config from {out_path}...")
         grabber.create_grabber()
         try:
-            grabber.ic.IC_LoadDeviceStateFromFile(grabber.hGrabber, grabber._t(str(out_path)))
+            grabber.ic.IC_LoadDeviceStateFromFile(
+                grabber.hGrabber, grabber._t(str(out_path))
+            )
             print(f"✓ Loaded existing configuration as default")
         except Exception as e:
             print(f"⚠ Could not load existing config: {e}")
             print(f"  Continuing with blank configuration...")
-    
+
     # デバイス選択ダイアログを表示（既存設定があればそれがデフォルトとして表示される）
     grabber.select_device()
 
@@ -54,11 +57,22 @@ def prompt_and_save(label: str, out_path: Path) -> bool:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Create TIS camera configs and update calibration_config.yaml")
-    parser.add_argument("--num", type=int, default=2, help="Number of cameras to configure (default: 2)")
-    parser.add_argument("--pattern", default="config/camera{}.xml", 
-                       help="Output path pattern (use {} for camera number, default: config/camera{}.xml)")
-    parser.add_argument("--config", default="calibration_config.yaml", help="Path to calibration_config.yaml (default: calibration_config.yaml)")
+    parser = argparse.ArgumentParser(
+        description="Create TIS camera configs and update calibration_config.yaml"
+    )
+    parser.add_argument(
+        "--num", type=int, default=2, help="Number of cameras to configure (default: 2)"
+    )
+    parser.add_argument(
+        "--pattern",
+        default="config/camera{}.xml",
+        help="Output path pattern (use {} for camera number, default: config/camera{}.xml)",
+    )
+    parser.add_argument(
+        "--config",
+        default="calibration_config.yaml",
+        help="Path to calibration_config.yaml (default: calibration_config.yaml)",
+    )
     args = parser.parse_args()
 
     if args.num < 1:
@@ -73,47 +87,49 @@ def main():
     for i in range(args.num):
         camera_num = i + 1
         xml_path = Path(args.pattern.format(camera_num))
-        
+
         label = f"Camera {camera_num}/{args.num}"
         ok = prompt_and_save(label, xml_path)
-        
+
         if not ok:
             print(f"\nAborting: Camera {camera_num} configuration failed.")
             return 1
-        
+
         camera_configs.append(xml_path)
         print()  # 空行
-    
+
     # calibration_config.yamlを更新
     try:
         from config_manager import ConfigManager
-        
+
         config_path = Path(args.config)
         manager = ConfigManager(config_path)
-        
+
         # 既存の設定があれば読み込み、なければ新規作成
         if config_path.exists():
             print(f"Loading existing {config_path}...")
             manager.load()
             # 既存のカメラ設定をクリア
-            manager.camera_config['cameras'] = []
+            manager.camera_config["cameras"] = []
         else:
             print(f"Creating new {config_path}...")
             manager.create_default_config(num_cameras=0, display_scale=0.5)
-        
+
         # 新しいカメラ設定を追加
         for xml_path in camera_configs:
             manager.add_camera(str(xml_path))
-        
+
         # 保存
         if manager.save():
             print(f"✓ Updated {config_path}")
         else:
             print(f"✗ Failed to update {config_path}")
             return 2
-    
+
     except ImportError:
-        print("\n警告: config_manager.py が見つかりません。calibration_config.yamlは更新されません。")
+        print(
+            "\n警告: config_manager.py が見つかりません。calibration_config.yamlは更新されません。"
+        )
         print("XMLファイルのみが作成されました。")
     except Exception as e:
         print(f"\n警告: calibration_config.yamlの更新中にエラーが発生しました: {e}")
