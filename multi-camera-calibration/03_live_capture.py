@@ -1,288 +1,271 @@
 """
-Multi-camera live viewer with image capture capability.
-- Loads camera configurations from calibration_config.yaml and shows each stream in its own window.
-- Press SPACE to capture and save images from all cameras simultaneously.
-- Supports dynamic number of cameras based on configuration.
+03_live_capture.py
 
-Requirements:
-  - Environment variable TISGRABBER_DLL_PATH must point to tisgrabber_x64.dll.
-  - Python packages: numpy, opencv-python, pyyaml
+OpenCV multi-camera live viewer with image capture capability.
 
-Usage (Windows cmd):
-  python 03_live_capture.py
-  python 03_live_capture.py --config my_config.yaml
-  python 03_live_capture.py --select  # Interactive device selection (ignores calibration_config.yaml)
-  python 03_live_capture.py --output captured_images  # Custom output directory
-
-Keys:
-  SPACE: Capture and save images from all cameras
-  q or ESC: Quit
+- Lets the user choose 1 or 2 cameras.
+- Uses cv2.VideoCapture instead of TISGrabberWrapper.
+- Press SPACE to capture images from all active cameras.
+- Saves matching filenames for both cameras so later calibration scripts
+  can identify synchronized image pairs.
 
 Output:
-  Images are saved to captured_images/ (or custom --output directory)
-  Each camera has its own subdirectory: captured_images/camera0/, camera1/, etc.
-  Filename format: YYYYMMDD_HHMMSS_mmm.png (with milliseconds)
+    captured_images/
+        camera0/
+            20260715_123456_123.png
+        camera1/
+            20260715_123456_123.png
 
-Notes:
-  - Use 01_create-configs.py to generate camera configs and calibration_config.yaml.
+Controls:
+    SPACE : Capture images
+    q     : Quit
+    ESC   : Quit
 """
+
 from __future__ import annotations
+
 import argparse
-import sys
-from pathlib import Path
-from typing import Optional, List
 from datetime import datetime
+from pathlib import Path
+from typing import List, Optional
 
-try:
-    import cv2
-    import numpy as np
-except Exception as e:  # pragma: no cover
-    print("This script requires OpenCV (cv2) and numpy. Install with: pip install opencv-python numpy", file=sys.stderr)
-    raise
-
-from tis_wrapper import TISGrabberWrapper
+import cv2
+import numpy as np
 
 
-def open_from_config(config_path: Path) -> Optional[TISGrabberWrapper]:
-    cam = TISGrabberWrapper()
-    if not config_path.exists():
-        print(f"Config not found: {config_path}")
-        cam.release()
-        return None
-    if not cam.load_device_config(str(config_path)):
-        print(f"Failed to load device from {config_path}")
-        cam.release()
-        return None
-    if not cam.start_live():
-        print(f"Failed to start live for {config_path}")
-        cam.release()
-        return None
-    return cam
-
-
-def open_by_selection(label: str) -> Optional[TISGrabberWrapper]:
-    print(f"=== Select {label} camera ===")
-    cam = TISGrabberWrapper()
-    cam.select_device()
-    if not cam.is_device_valid():
-        print(f"No device selected for {label}")
-        cam.release()
-        return None
-    if not cam.start_live():
-        print(f"Failed to start live for {label}")
-        cam.release()
-        return None
-    return cam
-
-
-def save_images(images: List[Optional[np.ndarray]], output_dir: Path, capture_count: int) -> bool:
+def open_camera(camera_index: int) -> Optional[cv2.VideoCapture]:
     """
-    Save images from all cameras with timestamp.
-    
+    Open a camera using OpenCV.
+
     Args:
-        images: List of images (one per camera, can contain None)
-        output_dir: Base output directory
-        capture_count: Current capture number (for display)
-    
+        camera_index: OpenCV camera index, such as 0 or 1.
+
     Returns:
-        True if at least one image was saved successfully
+        Opened VideoCapture object, or None if the camera could not be opened.
     """
-    # Generate timestamp
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")[:-3]  # Remove last 3 digits to get milliseconds
-    
+    print(f"Opening Camera {camera_index}...")
+
+    cap = cv2.VideoCapture(camera_index)
+
+    if not cap.isOpened():
+        print(f"✗ Failed to open Camera {camera_index}")
+        cap.release()
+        return None
+
+    print(f"✓ Camera {camera_index} opened")
+    return cap
+
+
+def save_images(
+    images: List[Optional[np.ndarray]],
+    output_dir: Path,
+    capture_count: int,
+) -> bool:
+    """
+    Save one image from every active camera.
+
+    The exact same timestamp filename is used for every camera.
+    This is important because later calibration stages use the matching
+    filenames to determine which frames were captured together.
+
+    Args:
+        images: Current image from each camera.
+        output_dir: Base capture directory.
+        capture_count: Number of captures taken so far.
+
+    Returns:
+        True if every camera image was successfully saved.
+    """
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")[:-3]
+
     saved_count = 0
-    failed_cameras = []
-    
-    for i, img in enumerate(images):
-        if img is None:
-            failed_cameras.append(i)
+
+    print(f"\n[Capture #{capture_count}]")
+
+    for camera_index, image in enumerate(images):
+        if image is None:
+            print(f"✗ Camera {camera_index}: No image available")
             continue
-        
-        # Create camera subdirectory
-        camera_dir = output_dir / f"camera{i}"
+
+        camera_dir = output_dir / f"camera{camera_index}"
         camera_dir.mkdir(parents=True, exist_ok=True)
-        
-        # Save image
+
         filename = camera_dir / f"{timestamp}.png"
-        try:
-            success = cv2.imwrite(str(filename), img)
-            if success:
-                saved_count += 1
-                print(f"  ✓ Camera {i}: {filename}")
-            else:
-                failed_cameras.append(i)
-                print(f"  ✗ Camera {i}: Failed to write {filename}")
-        except Exception as e:
-            failed_cameras.append(i)
-            print(f"  ✗ Camera {i}: Error - {e}")
-    
-    if saved_count > 0:
-        print(f"✓ Saved {saved_count}/{len(images)} images (capture #{capture_count})")
-        if failed_cameras:
-            print(f"  ⚠ Failed cameras: {failed_cameras}")
+
+        success = cv2.imwrite(str(filename), image)
+
+        if success:
+            saved_count += 1
+            print(f"✓ Camera {camera_index}: {filename}")
+        else:
+            print(f"✗ Camera {camera_index}: Failed to save image")
+
+    if saved_count == len(images):
+        print(
+            f"✓ Successfully saved synchronized capture "
+            f"#{capture_count} from all cameras"
+        )
         return True
-    else:
-        print(f"✗ Failed to save any images (capture #{capture_count})")
-        return False
+
+    print(
+        f"⚠ Saved {saved_count}/{len(images)} camera images "
+        f"for capture #{capture_count}"
+    )
+    return False
+
+
+def choose_number_of_cameras() -> int:
+    """
+    Ask the user whether to use one or two cameras.
+
+    Returns:
+        1 or 2.
+    """
+    while True:
+        choice = input("One or Two Cameras? Enter 1 or 2: ").strip()
+
+        if choice in {"1", "2"}:
+            return int(choice)
+
+        print("Please enter either 1 or 2.")
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Multi-camera live viewer with image capture")
-    parser.add_argument("--config", default="calibration_config.yaml", help="Path to calibration_config.yaml (default: calibration_config.yaml)")
-    parser.add_argument("--select", action="store_true", 
-                       help="Open selection dialogs interactively (ignores calibration_config.yaml)")
-    parser.add_argument("--num", type=int, help="Number of cameras when using --select (default: 2)")
-    parser.add_argument("--output", default="captured_images", 
-                       help="Output directory for captured images (default: captured_images)")
+    parser = argparse.ArgumentParser(
+        description="OpenCV multi-camera calibration image capture"
+    )
+
+    parser.add_argument(
+        "--output",
+        default="captured_images",
+        help="Output directory for captured images "
+             "(default: captured_images)",
+    )
+
     args = parser.parse_args()
 
-    # Setup output directory
     output_dir = Path(args.output)
     output_dir.mkdir(parents=True, exist_ok=True)
-    print(f"Output directory: {output_dir.absolute()}\n")
 
-    cameras: List[TISGrabberWrapper] = []
-    window_titles: List[str] = []
-    display_scales: List[float] = []
-    capture_count = 0
-    
+    print("=" * 60)
+    print("Multi-Camera Calibration Image Capture")
+    print("=" * 60)
+
+    num_cameras = choose_number_of_cameras()
+
+    cameras: List[cv2.VideoCapture] = []
+
     try:
-        if args.select:
-            # Interactive mode
-            num_cameras = args.num if args.num else 2
-            print(f"Interactive mode: Selecting {num_cameras} camera(s)...")
-            
-            for i in range(num_cameras):
-                label = f"Camera {i}/{num_cameras - 1}"
-                cam = open_by_selection(label)
-                if cam is None:
-                    print(f"Failed to select camera {i}")
-                    return i + 1
-                cameras.append(cam)
-                window_titles.append(f"Camera {i}")
-                display_scales.append(0.5)
-        else:
-            # Load from calibration_config.yaml
-            try:
-                from config_manager import ConfigManager
-                
-                config_path = Path(args.config)
-                if not config_path.exists():
-                    print(f"Error: {config_path} not found.")
-                    print("Run 01_create-configs.py first to create camera configurations.")
-                    return 1
-                
-                manager = ConfigManager(config_path)
-                if not manager.load():
-                    print(f"Error: Failed to load {config_path}")
-                    return 1
-                
-                num_cameras = manager.get_camera_count()
-                if num_cameras == 0:
-                    print(f"Error: No cameras configured in {config_path}")
-                    return 1
-                
-                print(f"Loading {num_cameras} camera(s) from {config_path}...")
-                
-                # グローバルdisplay_scaleを取得
-                global_display_scale = manager.get_display_scale()
-                print(f"Global display_scale: {global_display_scale}")
-                window_prefix = "Camera"
-                
-                # Load each camera
-                for i in range(num_cameras):
-                    cam_cfg = manager.get_camera_config(i)
-                    xml_path = Path(cam_cfg['xml_path']) # type: ignore
-                    # カメラ個別のdisplay_scaleがあればそれを使用、なければグローバルを使用
-                    scale = cam_cfg.get('display_scale', global_display_scale) # type: ignore
-                    
-                    print(f"  [{i}] Loading {xml_path}...")
-                    cam = open_from_config(xml_path)
-                    if cam is None:
-                        print(f"  ✗ Failed to load camera {i}")
-                        return i + 1
-                    
-                    cameras.append(cam)
-                    window_titles.append(f"{window_prefix} {i}")
-                    display_scales.append(scale)
-                    print(f"  ✓ Camera {i} loaded")
-                
-            except ImportError:
-                print("Error: config_manager.py not found. Cannot load calibration_config.yaml")
-                print("Please ensure config_manager.py exists in the current directory.")
-                return 1
-            except Exception as e:
-                print(f"Error loading configuration: {e}")
-                return 1
-        
-        # Create windows
-        for title in window_titles:
-            cv2.namedWindow(title, cv2.WINDOW_AUTOSIZE)
-        
-        print(f"\n✓ {len(cameras)} camera(s) ready")
-        print("─" * 60)
+        # Camera 0 is always used.
+        camera0 = open_camera(0)
+
+        if camera0 is None:
+            return 1
+
+        cameras.append(camera0)
+
+        # Camera 1 is opened only when the user selects two cameras.
+        if num_cameras == 2:
+            camera1 = open_camera(1)
+
+            if camera1 is None:
+                return 2
+
+            cameras.append(camera1)
+
+        print()
+        print(f"✓ {len(cameras)} camera(s) ready")
+        print(f"✓ Images will be saved to: {output_dir.absolute()}")
+        print()
         print("Controls:")
-        print("  SPACE: Capture and save images from all cameras")
-        print("  q or ESC: Quit")
-        print("─" * 60)
+        print("  SPACE : Capture calibration images")
+        print("  q     : Quit")
+        print("  ESC   : Quit")
         print()
 
-        # Main loop
-        current_images: List[Optional[np.ndarray]] = [None] * len(cameras)
-        
-        while True:
-            # Capture and display frames from all cameras
-            for i, (cam, title, scale) in enumerate(zip(cameras, window_titles, display_scales)):
-                img = cam.capture_image(timeout_ms=1000)
-                
-                if img is not None:
-                    # Store original image for saving
-                    current_images[i] = img.copy()
-                    
-                    # Display scaled image
-                    h, w = img.shape[:2]
-                    scale = max(scale, 0.01)
-                    resized = cv2.resize(img, (int(w * scale), int(h * scale)), 
-                                       interpolation=cv2.INTER_AREA)
-                    
-                    # Add capture count overlay
-                    if capture_count > 0:
-                        cv2.putText(resized, f"Captured: {capture_count}", 
-                                  (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 
-                                  0.7, (0, 255, 0), 2)
-                    
-                    cv2.imshow(title, resized)
+        capture_count = 0
 
-            # Handle keyboard input
+        while True:
+            current_images: List[Optional[np.ndarray]] = []
+
+            # Read one frame from every camera.
+            for camera_index, cap in enumerate(cameras):
+                success, frame = cap.read()
+
+                if not success or frame is None:
+                    print(
+                        f"Warning: Could not read frame "
+                        f"from Camera {camera_index}"
+                    )
+                    current_images.append(None)
+                    continue
+
+                # Save a copy of the original frame for image capture.
+                current_images.append(frame.copy())
+
+                # Create a display copy.
+                display_frame = frame.copy()
+
+                cv2.putText(
+                    display_frame,
+                    f"Camera {camera_index}",
+                    (10, 30),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.8,
+                    (0, 255, 0),
+                    2,
+                )
+
+                cv2.putText(
+                    display_frame,
+                    f"Captured: {capture_count}",
+                    (10, 60),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.7,
+                    (0, 255, 0),
+                    2,
+                )
+
+                cv2.imshow(
+                    f"Calibration - Camera {camera_index}",
+                    display_frame,
+                )
+
             key = cv2.waitKey(1) & 0xFF
-            
-            if key in (27, ord('q')):  # ESC or 'q'
+
+            # Quit.
+            if key == ord("q") or key == 27:
                 break
-            elif key == ord(' '):  # SPACE
-                capture_count += 1
-                print(f"\n[Capture #{capture_count}]")
-                save_images(current_images, output_dir, capture_count)
-                print()
-                
+
+            # Capture images.
+            if key == ord(" "):
+                # Only count the capture if every camera has a valid frame.
+                if all(image is not None for image in current_images):
+                    capture_count += 1
+
+                    save_images(
+                        current_images,
+                        output_dir,
+                        capture_count,
+                    )
+                else:
+                    print(
+                        "\n✗ Capture skipped because at least one "
+                        "camera does not have a valid frame."
+                    )
+
     finally:
-        # Cleanup
         print("\nCleaning up...")
-        for i, cam in enumerate(cameras):
-            try:
-                if cam is not None:
-                    cam.stop_live()
-                    cam.release()
-                    print(f"  ✓ Camera {i} released")
-            except Exception as e:
-                print(f"  ✗ Error releasing camera {i}: {e}")
-        try:
-            cv2.destroyAllWindows()
-        except Exception:
-            pass
-        
-        print(f"\n✓ Total captures: {capture_count}")
-        if capture_count > 0:
-            print(f"✓ Images saved to: {output_dir.absolute()}")
+
+        for camera_index, cap in enumerate(cameras):
+            cap.release()
+            print(f"✓ Camera {camera_index} released")
+
+        cv2.destroyAllWindows()
+
+    print()
+    print(f"✓ Total successful captures: {capture_count}")
+    print(f"✓ Images saved to: {output_dir.absolute()}")
 
     return 0
 
