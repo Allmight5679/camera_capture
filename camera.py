@@ -214,23 +214,69 @@ def main():
                 )
 
                 if points_3d is not None:
-                    # Example:
-                    # MediaPipe landmark 0 is the nose.
+                    # MediaPipe landmark indices:
+                    # 0  = Nose
+                    # 15 = Left wrist
+                    # 16 = Right wrist
                     nose_3d = points_3d[0]
+                    left_hand_3d = points_3d[15]
+                    right_hand_3d = points_3d[16]
 
+                    # Coordinate text settings.
+                    font = cv2.FONT_HERSHEY_DUPLEX
+                    font_scale = 1.0
+                    font_color = (0, 0, 0)
+                    font_thickness = 1
+
+                    # Nose coordinates.
                     cv2.putText(
                         frame1_display,
                         (
-                            f"Nose 3D: "
-                            f"X={nose_3d[0]:.2f} "
-                            f"Y={nose_3d[1]:.2f} "
-                            f"Z={nose_3d[2]:.2f} m"
+                            f"Nose | "
+                            f"X: {nose_3d[0]:.2f}  "
+                            f"Y: {nose_3d[1]:.2f}  "
+                            f"Z: {nose_3d[2]:.2f} m"
                         ),
-                        (10, 90),
-                        cv2.FONT_HERSHEY_SIMPLEX,
-                        0.6,
-                        (0, 255, 0),
-                        2,
+                        (15, 35),
+                        font,
+                        font_scale,
+                        font_color,
+                        font_thickness,
+                        cv2.LINE_AA,
+                    )
+
+                    # Left hand / wrist coordinates.
+                    cv2.putText(
+                        frame1_display,
+                        (
+                            f"L Hand | "
+                            f"X: {left_hand_3d[0]:.2f}  "
+                            f"Y: {left_hand_3d[1]:.2f}  "
+                            f"Z: {left_hand_3d[2]:.2f} m"
+                        ),
+                        (15, 65),
+                        font,
+                        font_scale,
+                        font_color,
+                        font_thickness,
+                        cv2.LINE_AA,
+                    )
+
+                    # Right hand / wrist coordinates.
+                    cv2.putText(
+                        frame1_display,
+                        (
+                            f"R Hand | "
+                            f"X: {right_hand_3d[0]:.2f}  "
+                            f"Y: {right_hand_3d[1]:.2f}  "
+                            f"Z: {right_hand_3d[2]:.2f} m"
+                        ),
+                        (15, 95),
+                        font,
+                        font_scale,
+                        font_color,
+                        font_thickness,
+                        cv2.LINE_AA,
                     )
 
                 frame1_display = cv2.resize(
